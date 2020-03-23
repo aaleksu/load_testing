@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func DoRequest(n int, url string, ch chan <- string) {
+func DoRequest(n int, url string, ch chan<- string, expected_len int) {
 	start := time.Now()
 	resp, _ := http.Get(url)
 
@@ -17,7 +17,21 @@ func DoRequest(n int, url string, ch chan <- string) {
 
 	body, _ := ioutil.ReadAll(resp.Body)
 
-	ch <- fmt.Sprintf("[%3d] req to url %s took %.2f secs; body len: %d", n, url, req_time, len(body))
+	body_len := len(body)
+
+	body_dbg := make([]byte, 0, 0)
+	if (expected_len > 0 && expected_len != body_len) {
+		body_dbg = body
+	}
+
+	ch <- fmt.Sprintf(
+		"[%3d] req to url %s took %.2f secs; body len: %d%s",
+		n,
+		url,
+		req_time,
+		len(body),
+		body_dbg,
+	)
 }
 
 func main() {
@@ -29,6 +43,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	expected_len := 0
+
 	url := os.Args[1]
 
 	ch := make(chan string)
@@ -38,12 +54,16 @@ func main() {
 		if i == 2 {
 			reps, _ = strconv.Atoi(os.Args[i])
 		}
+
+		if i == 3 {
+			expected_len, _ = strconv.Atoi(os.Args[i])
+		}
 	}
 
 	fmt.Printf("\ntesting %s %d time(s)\n", url, reps)
 
 	for n := 0; n < reps; n++ {
-		go DoRequest(n, url, ch)
+		go DoRequest(n, url, ch, expected_len)
 	}
 
 	for nn := 0; nn < reps; nn++ {
